@@ -132,6 +132,6 @@ pub fn disasm(ins_raw: u32) -> Result<Op, ByteCodeReadError> {
         0x5e => Op::JFUNCV(get_a(ins_raw), get_d(ins_raw)),
         0x5f => Op::FUNCC(get_a(ins_raw)),
         0x60 => Op::FUNCCW(get_a(ins_raw)),
-        _ => panic!("Unknown bytecode instruction opcode.")
+        _ => panic!("Unknown bytecode instruction opcode."),
     })
 }

@@ -61,7 +61,6 @@ pub struct ByteCodeProto {
     uv: Vec<u16>,
     kgc: Vec<GlobalConst>,
     knum: Vec<NumConst>,
-    pub disasm_bc: Vec<Op>,
 }
 
 impl ByteCodeProto {
@@ -78,7 +77,6 @@ impl ByteCodeProto {
             uv: vec![],
             kgc: vec![],
             knum: vec![],
-            disasm_bc: vec![],
         }
     }
 }
@@ -293,11 +291,9 @@ pub fn read_prototype_bytecode<T: Read>(
         bc_proto.bc_raw = ins_buff;
 
         // todo: add logic for separate type error handling
-        let mut disasm_bc = Vec::with_capacity(bc_proto.bc_raw.len());
-        for val in bc_proto.bc_raw.iter().copied() {
-            disasm_bc.push(disasm(val)?);
+        for (idx, &val) in bc_proto.bc_raw.iter().enumerate() {
+            println!("0x{:04x}|    {:?}", idx, disasm(val)?);
         }
-        bc_proto.disasm_bc = disasm_bc;
     }
 
     Ok(())
