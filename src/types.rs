@@ -244,12 +244,12 @@ impl From<u16> for CData {
 
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct Jump(pub u16);
+pub struct Jump(pub i16);
 
 impl From<u8> for Jump {
     #[inline(always)]
     fn from(val: u8) -> Self {
-        Jump(val as u16)
+        Jump((0x8000 - val as u16) as i16)
     }
 }
 
@@ -257,9 +257,9 @@ impl From<u16> for Jump {
     #[inline(always)]
     fn from(val: u16) -> Self {
         if val >= 0x8000 {
-            Jump(val - 0x8000)
+            Jump((val - 0x8000) as i16)
         } else {
-            Jump(0x8000 - val)
+            Jump(-((0x8000 - val) as i16))
         }
     }
 }
