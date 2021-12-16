@@ -80,14 +80,25 @@ impl<N: Sized, E: Sized> Graph<N, E> {
 
     #[inline(always)]
     pub fn try_node_with_max_index_less_then_or_equal(&self, index: u32) -> Option<u32> {
-        self.nodes.get(&index).map_or_else(|| {
-            self.nodes.range(..index).next_back().map_or_else(|| None, |entry| Some(*entry.0))
-        }, |_| Some(index))
+        self.nodes.get(&index).map_or_else(
+            || {
+                self.nodes
+                    .range(..index)
+                    .next_back()
+                    .map_or_else(|| None, |entry| Some(*entry.0))
+            },
+            |_| Some(index),
+        )
     }
 
     #[inline(always)]
     pub fn node(&self, index: u32) -> Option<&Node<N>> {
         self.nodes.get(&index)
+    }
+
+    #[inline(always)]
+    pub fn exists(&self, index: u32) -> bool {
+        self.nodes.get(&index).map_or(false, |_| true)
     }
 
     #[inline(always)]
@@ -100,14 +111,8 @@ impl<N: Sized, E: Sized> Graph<N, E> {
         self.nodes.get_mut(&index).map(|n| &mut n.weight)
     }
 
-    pub fn add_edge(
-        &mut self,
-        weight: E,
-        from: u32,
-        to: u32,
-    ) -> u32 {
+    pub fn add_edge(&mut self, weight: E, from: u32, to: u32) -> u32 {
         let index = self.edges.len() as u32;
-
 
         let from_node = self.nodes.get_mut(&from).unwrap();
         let next_outgoing_edge = from_node.next_outgoing_edge.replace(index);
@@ -123,10 +128,8 @@ impl<N: Sized, E: Sized> Graph<N, E> {
             next_outgoing_edge,
         });
 
-
         index
     }
-
 
     pub fn add_node(&mut self, index: u32, weight: N) -> Option<u32> {
         self.nodes
