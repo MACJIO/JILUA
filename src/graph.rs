@@ -98,7 +98,7 @@ impl<N: Sized, E: Sized> Graph<N, E> {
 
     #[inline(always)]
     pub fn exists(&self, index: u32) -> bool {
-        self.nodes.get(&index).map_or(false, |_| true)
+        self.nodes.get(&index).is_some()
     }
 
     #[inline(always)]
