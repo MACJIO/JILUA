@@ -31,25 +31,19 @@ impl Block {
     }
 
     #[inline(always)]
-    pub fn push_ins(&mut self, ins: u32) {
-        self.data.push(ins)
-    }
-
-    #[inline(always)]
     pub fn data(&self) -> &Vec<u32> {
         &self.data
     }
 }
 
-pub fn resolve_basic_blocks(bc_raw: Vec<u32>) -> Result<Graph<Block, ()>, ByteCodeReadError> {
+pub fn resolve_basic_blocks(bc_raw: &[u32]) -> Result<Graph<Block, ()>, ByteCodeReadError> {
     let mut graph: Graph<Block, ()> = Graph::new();
-    let block = Block::from_ins_vec(bc_raw);
+    let block = Block::from_ins_vec(bc_raw.to_vec());
 
     let proto_len = block.len();
 
     graph.add_node(0, block);
 
-    // todo: we can join this variable with jump_data_option
     let mut next_node_index_option: Option<u32> = Some(0);
 
     let mut skip = false;
@@ -148,7 +142,7 @@ pub fn resolve_basic_blocks(bc_raw: Vec<u32>) -> Result<Graph<Block, ()>, ByteCo
 #[cfg(test)]
 mod tests {
     use crate::resolver::{resolve_basic_blocks};
-    
+
 
     #[test]
     fn it_works() {

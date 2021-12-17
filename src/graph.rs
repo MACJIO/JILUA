@@ -73,7 +73,7 @@ impl<N: Sized, E: Sized> Graph<N, E> {
     }
 
     #[inline(always)]
-    pub fn node_mut(&mut self, index: u32) -> Option<&mut Node<N>> {
+    fn node_mut(&mut self, index: u32) -> Option<&mut Node<N>> {
         self.nodes.get_mut(&index)
     }
 
@@ -91,7 +91,7 @@ impl<N: Sized, E: Sized> Graph<N, E> {
     }
 
     #[inline(always)]
-    pub fn node(&self, index: u32) -> Option<&Node<N>> {
+    fn node(&self, index: u32) -> Option<&Node<N>> {
         self.nodes.get(&index)
     }
 

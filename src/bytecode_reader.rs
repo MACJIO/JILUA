@@ -2,9 +2,9 @@ use std::io::Read;
 
 use byteorder::{LittleEndian, ReadBytesExt};
 use thiserror::Error;
+use crate::Graph;
 
-use crate::disasm::disasm;
-use crate::op::Op;
+use crate::resolver::{Block, resolve_basic_blocks};
 
 // byte code header constants
 pub const BC_HEAD1: u8 = 0x1b;
@@ -52,15 +52,17 @@ pub struct ByteCodeProto {
     flags: u8,
     num_params: u8,
     frame_size: u8,
-    size_uv: u8,
-    size_kgc: u32,
-    size_kn: u32,
+    size_up_values: u8,
+    size_global_consts: u32,
+    size_num_consts: u32,
     size_bc: u32,
 
+    flow_graph: Graph<Block, ()>,
+
     bc_raw: Vec<u32>,
-    uv: Vec<u16>,
-    kgc: Vec<GlobalConst>,
-    knum: Vec<NumConst>,
+    up_values: Vec<u16>,
+    global_consts: Vec<GlobalConst>,
+    num_consts: Vec<NumConst>,
 }
 
 impl ByteCodeProto {
@@ -69,14 +71,15 @@ impl ByteCodeProto {
             flags: 0,
             num_params: 0,
             frame_size: 0,
-            size_uv: 0,
-            size_kgc: 0,
-            size_kn: 0,
+            size_up_values: 0,
+            size_global_consts: 0,
+            size_num_consts: 0,
             size_bc: 0,
+            flow_graph: Graph::new(),
             bc_raw: vec![],
-            uv: vec![],
-            kgc: vec![],
-            knum: vec![],
+            up_values: vec![],
+            global_consts: vec![],
+            num_consts: vec![],
         }
     }
 }
@@ -177,7 +180,7 @@ pub fn read_uleb128_33<T: Read>(data: &mut T) -> Result<(u32, u8), ByteCodeReadE
                 break;
             }
 
-            sh = sh + 7;
+            sh += 7;
         }
     }
 
@@ -238,14 +241,14 @@ pub fn read_prototype<T: Read>(
     bc_proto.flags = arr[0];
     bc_proto.num_params = arr[1];
     bc_proto.frame_size = arr[2];
-    bc_proto.size_uv = arr[3];
+    bc_proto.size_up_values = arr[3];
 
-    bc_proto.size_kgc = read_uleb128(data)?;
-    bc_proto.size_kn = read_uleb128(data)?;
+    bc_proto.size_global_consts = read_uleb128(data)?;
+    bc_proto.size_num_consts = read_uleb128(data)?;
     bc_proto.size_bc = read_uleb128(data)?; // byte code instruction count (+ 1 for repr)
 
     println!("flags 0x{:x} num_params 0x{:x} frame_size 0x{:x} size_uv 0x{:x} size_kgc 0x{:x} size_kn 0x{:x} size_bc 0x{:x}",
-             bc_proto.flags, bc_proto.num_params, bc_proto.frame_size, bc_proto.size_uv, bc_proto.size_kgc, bc_proto.size_kn, bc_proto.size_bc);
+             bc_proto.flags, bc_proto.num_params, bc_proto.frame_size, bc_proto.size_up_values, bc_proto.size_global_consts, bc_proto.size_num_consts, bc_proto.size_bc);
 
     // todo: check debug flags and collect debug data if it exists
 
@@ -264,13 +267,13 @@ pub fn read_prototype_up_values<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
 ) -> Result<(), ByteCodeReadError> {
-    if bc_proto.size_uv > 0 {
-        let mut uv_buff: Vec<u16> = Vec::with_capacity(bc_proto.size_uv as usize);
+    if bc_proto.size_up_values > 0 {
+        let mut uv_buff: Vec<u16> = Vec::with_capacity(bc_proto.size_up_values as usize);
 
-        unsafe { uv_buff.set_len(bc_proto.size_uv as usize) }
+        unsafe { uv_buff.set_len(bc_proto.size_up_values as usize) }
         data.read_u16_into::<LittleEndian>(&mut uv_buff[..])?;
 
-        bc_proto.uv = uv_buff;
+        bc_proto.up_values = uv_buff;
     }
 
     Ok(())
@@ -289,12 +292,10 @@ pub fn read_prototype_bytecode<T: Read>(
         data.read_u32_into::<LittleEndian>(&mut ins_buff[..])?;
 
         bc_proto.bc_raw = ins_buff;
-
-        // todo: add logic for separate type error handling
-        for (idx, &val) in bc_proto.bc_raw.iter().enumerate() {
-            println!("0x{:04x}|    {:?}", idx, disasm(val)?);
-        }
     }
+
+    // analyze control flow graph
+    bc_proto.flow_graph = resolve_basic_blocks(&bc_proto.bc_raw[..])?;
 
     Ok(())
 }
@@ -327,7 +328,7 @@ pub fn read_prototype_const_table<T: Read>(
         }
     }
 
-    bc_proto.kgc.push(GlobalConst::Table(ktab));
+    bc_proto.global_consts.push(GlobalConst::Table(ktab));
 
     Ok(())
 }
@@ -336,17 +337,17 @@ pub fn read_prototype_global_constants<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
 ) -> Result<(), ByteCodeReadError> {
-    for _ in 0..bc_proto.size_kgc {
+    for _ in 0..bc_proto.size_global_consts {
         // get gc type
         let tp = read_uleb128(data)?;
 
         match tp {
-            GC_TYPE_PROTO_CHILD => bc_proto.kgc.push(GlobalConst::ProtoChild),
+            GC_TYPE_PROTO_CHILD => bc_proto.global_consts.push(GlobalConst::ProtoChild),
             GC_TYPE_TABLE => read_prototype_const_table(data, bc_proto)?,
             GC_TYPE_I64 | GC_TYPE_U64 => bc_proto
-                .kgc
+                .global_consts
                 .push(GlobalConst::Num(read_uleb128(data)?, read_uleb128(data)?)),
-            GC_TYPE_COMPLEX => bc_proto.kgc.push(GlobalConst::Complex(
+            GC_TYPE_COMPLEX => bc_proto.global_consts.push(GlobalConst::Complex(
                 read_uleb128(data)?,
                 read_uleb128(data)?,
                 read_uleb128(data)?,
@@ -358,7 +359,7 @@ pub fn read_prototype_global_constants<T: Read>(
                 let mut str = vec![0u8; len as usize];
                 data.read_exact(&mut str)?;
 
-                bc_proto.kgc.push(GlobalConst::Str(
+                bc_proto.global_consts.push(GlobalConst::Str(
                     String::from_utf8_lossy(str.as_slice()).to_string(),
                 ));
             }
@@ -396,13 +397,13 @@ pub fn read_prototype_num_constants<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
 ) -> Result<(), ByteCodeReadError> {
-    for _ in 0..bc_proto.size_kn {
+    for _ in 0..bc_proto.size_num_consts {
         let (lo, first) = read_uleb128_33(data)?;
         if first & 1 == 1 {
             let hi = read_uleb128(data)?;
-            bc_proto.knum.push(NumConst::Num(lo, hi));
+            bc_proto.num_consts.push(NumConst::Num(lo, hi));
         } else {
-            bc_proto.knum.push(NumConst::Int(lo));
+            bc_proto.num_consts.push(NumConst::Int(lo));
         }
     }
 
