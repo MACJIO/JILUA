@@ -31,7 +31,7 @@ impl Block {
     }
 
     #[inline(always)]
-    pub fn push_ins(&mut self, ins: u32) -> () {
+    pub fn push_ins(&mut self, ins: u32) {
         self.data.push(ins)
     }
 
@@ -43,7 +43,7 @@ impl Block {
 
 pub fn resolve_basic_blocks(bc_raw: Vec<u32>) -> Result<Graph<Block, ()>, ByteCodeReadError> {
     let mut graph: Graph<Block, ()> = Graph::new();
-    let mut block = Block::from_ins_vec(bc_raw);
+    let block = Block::from_ins_vec(bc_raw);
 
     let proto_len = block.len();
 
@@ -55,7 +55,7 @@ pub fn resolve_basic_blocks(bc_raw: Vec<u32>) -> Result<Graph<Block, ()>, ByteCo
     let mut skip = false;
 
     while let Some(next_node_index) = next_node_index_option {
-        let mut block = graph.node_weight_mut(next_node_index).unwrap();
+        let block = graph.node_weight_mut(next_node_index).unwrap();
 
         // first element is index of next block after jump in current block
         // second element is absolute jump address index
@@ -134,13 +134,11 @@ pub fn resolve_basic_blocks(bc_raw: Vec<u32>) -> Result<Graph<Block, ()>, ByteCo
             }
 
             next_node_index_option = Some(next_node_index + jump_data.0);
+        } else if !skip {
+            next_node_index_option = None;
         } else {
-            if !skip {
-                next_node_index_option = None;
-            } else {
-                skip = false;
-                graph.add_edge((), next_node_index, next_node_index_option.unwrap());
-            }
+            skip = false;
+            graph.add_edge((), next_node_index, next_node_index_option.unwrap());
         }
     }
 
@@ -149,8 +147,8 @@ pub fn resolve_basic_blocks(bc_raw: Vec<u32>) -> Result<Graph<Block, ()>, ByteCo
 
 #[cfg(test)]
 mod tests {
-    use crate::resolver::{resolve_basic_blocks, Block};
-    use crate::{ByteCodeReadError, Graph};
+    use crate::resolver::{resolve_basic_blocks};
+    
 
     #[test]
     fn it_works() {
