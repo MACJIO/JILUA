@@ -1,10 +1,11 @@
 use std::io::Read;
 
+use crate::error::DecompileError;
+use crate::Graph;
 use byteorder::{LittleEndian, ReadBytesExt};
 use thiserror::Error;
-use crate::Graph;
 
-use crate::resolver::{Block, resolve_basic_blocks};
+use crate::resolver::{resolve_basic_blocks, Block};
 
 // byte code header constants
 pub const BC_HEAD1: u8 = 0x1b;
@@ -35,16 +36,6 @@ pub const TABLE_ENTRY_TYPE_TRUE: u32 = 2;
 pub const TABLE_ENTRY_TYPE_INT: u32 = 3;
 pub const TABLE_ENTRY_TYPE_NUM: u32 = 4;
 pub const TABLE_ENTRY_TYPE_STR: u32 = 5;
-
-#[derive(Error, Debug)]
-pub enum ByteCodeReadError {
-    #[error("IO error")]
-    IO(#[from] std::io::Error),
-    #[error("Invalid uleb128 value was passed.")]
-    InvalidULeb128,
-    #[error("Invalid byte code header bytes")]
-    InvalidHeaderBytes(&'static str),
-}
 
 // lua prototype aka function
 #[derive(Debug)]
@@ -137,12 +128,12 @@ pub enum ConstTableVal {
     String(String),
 }
 
-pub fn read_uleb128<T: Read>(data: &mut T) -> Result<u32, ByteCodeReadError> {
+pub fn read_uleb128<T: Read>(data: &mut T) -> Result<u32, DecompileError> {
     let mut result = 0u32;
     let mut shift = 0u8;
     loop {
         if shift > 28 {
-            return Err(ByteCodeReadError::InvalidULeb128);
+            return Err(DecompileError::InvalidULeb128);
         }
 
         let mut arr = [0u8; 1];
@@ -159,7 +150,7 @@ pub fn read_uleb128<T: Read>(data: &mut T) -> Result<u32, ByteCodeReadError> {
 }
 
 // read top 32 bits of 33 bit ULEB128 value from buffer
-pub fn read_uleb128_33<T: Read>(data: &mut T) -> Result<(u32, u8), ByteCodeReadError> {
+pub fn read_uleb128_33<T: Read>(data: &mut T) -> Result<(u32, u8), DecompileError> {
     let mut arr = [0u8; 1];
     data.read_exact(&mut arr)?;
 
@@ -190,27 +181,25 @@ pub fn read_uleb128_33<T: Read>(data: &mut T) -> Result<(u32, u8), ByteCodeReadE
 pub fn read_header<T: ReadBytesExt>(
     file: &mut T,
     bc_dump: &mut ByteCodeDump,
-) -> Result<(), ByteCodeReadError> {
+) -> Result<(), DecompileError> {
     let mut arr = [0u8; 4];
     file.read_exact(&mut arr)?;
 
     if arr[0] != BC_HEAD1 || arr[1] != BC_HEAD2 || arr[2] != BC_HEAD3 {
-        return Err(ByteCodeReadError::InvalidHeaderBytes(
+        return Err(DecompileError::InvalidHeaderBytes(
             "Invalid byte code file magic.",
         ));
     }
 
     if arr[3] != BC_VERSION {
-        return Err(ByteCodeReadError::InvalidHeaderBytes(
+        return Err(DecompileError::InvalidHeaderBytes(
             "Invalid byte code version.",
         ));
     }
 
     let flags = read_uleb128(file)?;
     if flags & !BC_F_KNOWN != 0 || flags & BC_F_FFI == 1 {
-        return Err(ByteCodeReadError::InvalidHeaderBytes(
-            "Invalid header flags.",
-        ));
+        return Err(DecompileError::InvalidHeaderBytes("Invalid header flags."));
     }
 
     // todo: unknown logic with chunk string
@@ -233,7 +222,7 @@ pub fn read_header<T: ReadBytesExt>(
 pub fn read_prototype<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
-) -> Result<(), ByteCodeReadError> {
+) -> Result<(), DecompileError> {
     // read prototype header
     let mut arr = [0u8; 4];
     data.read_exact(&mut arr)?;
@@ -266,7 +255,7 @@ pub fn read_prototype<T: Read>(
 pub fn read_prototype_up_values<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
-) -> Result<(), ByteCodeReadError> {
+) -> Result<(), DecompileError> {
     if bc_proto.size_up_values > 0 {
         let mut uv_buff: Vec<u16> = Vec::with_capacity(bc_proto.size_up_values as usize);
 
@@ -282,7 +271,7 @@ pub fn read_prototype_up_values<T: Read>(
 pub fn read_prototype_bytecode<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
-) -> Result<(), ByteCodeReadError> {
+) -> Result<(), DecompileError> {
     if bc_proto.size_bc > 0 {
         let mut ins_buff: Vec<u32> = Vec::with_capacity(bc_proto.size_bc as usize);
 
@@ -303,7 +292,7 @@ pub fn read_prototype_bytecode<T: Read>(
 pub fn read_prototype_const_table<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
-) -> Result<(), ByteCodeReadError> {
+) -> Result<(), DecompileError> {
     // read template table
     let n_array = read_uleb128(data)?;
     let n_hash = read_uleb128(data)?;
@@ -336,7 +325,7 @@ pub fn read_prototype_const_table<T: Read>(
 pub fn read_prototype_global_constants<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
-) -> Result<(), ByteCodeReadError> {
+) -> Result<(), DecompileError> {
     for _ in 0..bc_proto.size_global_consts {
         // get gc type
         let tp = read_uleb128(data)?;
@@ -372,7 +361,7 @@ pub fn read_prototype_global_constants<T: Read>(
 // read single key/value of a template table
 pub fn read_prototype_const_table_val<T: Read>(
     data: &mut T,
-) -> Result<ConstTableVal, ByteCodeReadError> {
+) -> Result<ConstTableVal, DecompileError> {
     let tp = read_uleb128(data)?;
 
     match tp {
@@ -396,7 +385,7 @@ pub fn read_prototype_const_table_val<T: Read>(
 pub fn read_prototype_num_constants<T: Read>(
     data: &mut T,
     bc_proto: &mut ByteCodeProto,
-) -> Result<(), ByteCodeReadError> {
+) -> Result<(), DecompileError> {
     for _ in 0..bc_proto.size_num_consts {
         let (lo, first) = read_uleb128_33(data)?;
         if first & 1 == 1 {
@@ -410,7 +399,7 @@ pub fn read_prototype_num_constants<T: Read>(
     Ok(())
 }
 
-pub fn read_bytecode_dump<T: Read>(data: &mut T) -> Result<ByteCodeDump, ByteCodeReadError> {
+pub fn read_bytecode_dump<T: Read>(data: &mut T) -> Result<ByteCodeDump, DecompileError> {
     let mut bc_dump = ByteCodeDump::new();
 
     // read byte code header

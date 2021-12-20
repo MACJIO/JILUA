@@ -78,16 +78,19 @@ impl<N: Sized, E: Sized> Graph<N, E> {
     }
 
     #[inline(always)]
-    pub fn try_node_with_max_index_less_then_or_equal(&self, index: u32) -> Option<u32> {
-        self.nodes.get(&index).map_or_else(
-            || {
-                self.nodes
-                    .range(..index)
-                    .next_back()
-                    .map_or_else(|| None, |entry| Some(*entry.0))
-            },
-            |_| Some(index),
-        )
+    pub fn try_prev_node(&self, index: u32) -> Option<u32> {
+        self.nodes
+            .range(..=index)
+            .next_back()
+            .map_or(None, |(&index, _)| Some(index))
+    }
+
+    #[inline(always)]
+    pub fn try_next_node(&self, index: u32) -> Option<u32> {
+        self.nodes
+            .range(index..)
+            .next()
+            .map_or(None, |(&index, _)| Some(index))
     }
 
     #[inline(always)]

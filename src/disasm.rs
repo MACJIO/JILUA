@@ -1,10 +1,7 @@
+use crate::DecompileError;
 use thiserror::Error;
 
-use crate::bytecode_reader::ByteCodeReadError;
 use crate::op::Op;
-
-#[derive(Error, Debug)]
-pub enum DisasmError {}
 
 #[inline(always)]
 fn get_op(ins: u32) -> u8 {
@@ -31,7 +28,7 @@ fn get_d<R: From<u16>>(ins: u32) -> R {
     R::from((ins >> 16) as u16)
 }
 
-pub fn disasm(ins_raw: u32) -> Result<Op, ByteCodeReadError> {
+pub fn disasm(ins_raw: u32) -> Result<Op, DecompileError> {
     // todo: add DisasmError
 
     Ok(match get_op(ins_raw) {
