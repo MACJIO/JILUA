@@ -5,7 +5,7 @@ use crate::Graph;
 use byteorder::{LittleEndian, ReadBytesExt};
 use thiserror::Error;
 
-use crate::resolver::{resolve_basic_blocks, Block};
+use crate::resolver::{resolve_basic_blocks, Block, BranchKind};
 
 // byte code header constants
 pub const BC_HEAD1: u8 = 0x1b;
@@ -48,7 +48,7 @@ pub struct ByteCodeProto {
     size_num_consts: u32,
     size_bc: u32,
 
-    flow_graph: Graph<Block, ()>,
+    flow_graph: Graph<Block, BranchKind>,
 
     bc_raw: Vec<u32>,
     up_values: Vec<u16>,

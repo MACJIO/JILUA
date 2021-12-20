@@ -37,8 +37,17 @@ impl Block {
     }
 }
 
+#[derive(Debug)]
+pub enum BranchKind {
+    True,
+    False,
+    Unconditional,
+    LoopInit,
+    Loop
+}
+
 fn recurse_block(
-    graph: &mut Graph<Block, ()>,
+    graph: &mut Graph<Block, BranchKind>,
     bc_raw: &[u32],
     idx: u32,
 ) -> Result<(), DecompileError> {
@@ -77,7 +86,7 @@ fn recurse_block(
                     block_start_idx,
                     Block::from_ins_vec(bc_raw[block_start_idx as usize..idx as usize].to_vec()),
                 );
-                graph.add_edge((), block_start_idx, idx as u32);
+                graph.add_edge(BranchKind::Unconditional, block_start_idx, idx as u32);
 
                 return Ok(());
             }
@@ -108,12 +117,15 @@ fn recurse_block(
 
                     let dest_block_idx = ((idx + 1) as i32 + jump.0 as i32) as u32;
                     recurse_block(graph, bc_raw, dest_block_idx)?;
-                    graph.add_edge((), block_start_idx, dest_block_idx);
 
                     if prev_cond_idx.map(|v| v + 1) == Some(idx) {
+                        graph.add_edge(BranchKind::True, block_start_idx, dest_block_idx);
+
                         let next_block_idx = (idx + 1) as u32;
                         recurse_block(graph, bc_raw, next_block_idx)?;
-                        graph.add_edge((), block_start_idx, next_block_idx);
+                        graph.add_edge(BranchKind::False, block_start_idx, next_block_idx);
+                    } else {
+                        graph.add_edge(BranchKind::Unconditional, block_start_idx, dest_block_idx);
                     }
 
                     return Ok(());
@@ -132,7 +144,7 @@ fn recurse_block(
 
                     let dest_block_idx = ((idx + 1) as i32 + jump.0 as i32) as u32;
                     recurse_block(graph, bc_raw, dest_block_idx)?;
-                    graph.add_edge((), block_start_idx, dest_block_idx);
+                    graph.add_edge(BranchKind::Unconditional, block_start_idx, dest_block_idx);
 
                     return Ok(());
                 }
@@ -148,7 +160,7 @@ fn recurse_block(
 
                     let dest_block_idx = ((idx + 1) as i32 + jump.0 as i32) as u32;
                     recurse_block(graph, bc_raw, dest_block_idx)?;
-                    graph.add_edge((), block_start_idx, dest_block_idx);
+                    graph.add_edge(BranchKind::Loop, block_start_idx, dest_block_idx);
 
                     return Ok(());
                 }
@@ -167,11 +179,11 @@ fn recurse_block(
 
                     let dest_block_idx = ((idx + 1) as i32 + jump.0 as i32) as u32;
                     recurse_block(graph, bc_raw, dest_block_idx)?;
-                    graph.add_edge((), block_start_idx, dest_block_idx);
+                    graph.add_edge(BranchKind::False, block_start_idx, dest_block_idx);
 
                     let next_block_idx = (idx + 1) as u32;
                     recurse_block(graph, bc_raw, next_block_idx)?;
-                    graph.add_edge((), block_start_idx, next_block_idx);
+                    graph.add_edge(BranchKind::LoopInit, block_start_idx, next_block_idx);
 
                     return Ok(());
                 }
@@ -196,8 +208,8 @@ fn recurse_block(
     Ok(())
 }
 
-pub fn resolve_basic_blocks(bc_raw: &[u32]) -> Result<Graph<Block, ()>, DecompileError> {
-    let mut graph: Graph<Block, ()> = Graph::new();
+pub fn resolve_basic_blocks(bc_raw: &[u32]) -> Result<Graph<Block, BranchKind>, DecompileError> {
+    let mut graph: Graph<Block, BranchKind> = Graph::new();
 
     recurse_block(&mut graph, bc_raw, 0)?;
 
