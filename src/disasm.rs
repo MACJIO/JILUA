@@ -29,8 +29,6 @@ fn get_d<R: From<u16>>(ins: u32) -> R {
 }
 
 pub fn disasm(ins_raw: u32) -> Result<Op, DecompileError> {
-    // todo: add DisasmError
-
     Ok(match get_op(ins_raw) {
         0x00 => Op::ISLT(get_a(ins_raw), get_d(ins_raw)),
         0x01 => Op::ISGE(get_a(ins_raw), get_d(ins_raw)),
