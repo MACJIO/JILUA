@@ -172,7 +172,7 @@ impl From<u8> for Pri {
             0 => Pri::Nil,
             1 => Pri::False,
             2 => Pri::True,
-            _ => panic!("pizdec"),
+            _ => panic!("Unexpected value"),
         }
     }
 }
@@ -183,7 +183,7 @@ impl From<u16> for Pri {
             0 => Pri::Nil,
             1 => Pri::False,
             2 => Pri::True,
-            _ => panic!("pizdec"),
+            _ => panic!("Unexpected value"),
         }
     }
 }
