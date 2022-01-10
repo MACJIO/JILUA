@@ -37,13 +37,13 @@ impl Block {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BranchKind {
     True,
     False,
     Unconditional,
     LoopInit,
-    Loop
+    Loop,
 }
 
 fn recurse_block(
@@ -148,7 +148,7 @@ fn recurse_block(
 
                     return Ok(());
                 }
-                Op::ISNEXT(_, jump) // todo: find out id ISNEXT is conditional
+                Op::ISNEXT(_, jump) // todo: find out if ISNEXT is conditional
                 | Op::FORL(_, jump)
                 | Op::IFORL(_, jump) => {
                     graph.add_node(
@@ -213,7 +213,7 @@ pub fn resolve_basic_blocks(bc_raw: &[u32]) -> Result<Graph<Block, BranchKind>, 
 
     recurse_block(&mut graph, bc_raw, 0)?;
 
-    // println!("GRAPH \n{:?}\n", graph);
+    println!("{:?}", graph);
     Ok(graph)
 }
 
