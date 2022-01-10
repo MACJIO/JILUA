@@ -48,7 +48,7 @@ pub struct ByteCodeProto {
     size_num_consts: u32,
     size_bc: u32,
 
-    flow_graph: Graph<Block, BranchKind>,
+    basic_block_graph: Graph<Block, BranchKind>,
 
     bc_raw: Vec<u32>,
     up_values: Vec<u16>,
@@ -66,12 +66,16 @@ impl ByteCodeProto {
             size_global_consts: 0,
             size_num_consts: 0,
             size_bc: 0,
-            flow_graph: Graph::new(),
+            basic_block_graph: Graph::new(),
             bc_raw: vec![],
             up_values: vec![],
             global_consts: vec![],
             num_consts: vec![],
         }
+    }
+
+    pub fn basic_block_graph_ref(&self) -> &Graph<Block, BranchKind> {
+        &self.basic_block_graph
     }
 }
 
@@ -95,6 +99,22 @@ impl ByteCodeDump<'_> {
             prototypes: vec![],
         }
     }
+
+    pub fn prototypes(&self) -> &Vec<ByteCodeProto> {
+        &self.prototypes
+    }
+}
+
+#[derive(Debug)]
+pub enum LuaValue {
+    Nil,
+    True,
+    False,
+    Int(u32),
+    Num(u32, u32),
+    Complex(u32, u32, u32, u32),
+    String(String),
+    ProtoChild,
 }
 
 #[derive(Debug)]
@@ -284,7 +304,7 @@ pub fn read_prototype_bytecode<T: Read>(
     }
 
     // analyze control flow graph
-    bc_proto.flow_graph = resolve_basic_blocks(&bc_proto.bc_raw[..])?;
+    bc_proto.basic_block_graph = resolve_basic_blocks(&bc_proto.bc_raw[..])?;
 
     Ok(())
 }
@@ -412,7 +432,7 @@ pub fn read_bytecode_dump<T: Read>(data: &mut T) -> Result<ByteCodeDump, Decompi
                 continue;
             }
 
-            println!("Prototype len 0x{:x}", proto_len);
+            // println!("Prototype len 0x{:x}", proto_len);
 
             // read prototype data
             let mut proto_data: Vec<u8> = Vec::with_capacity(proto_len as usize);
