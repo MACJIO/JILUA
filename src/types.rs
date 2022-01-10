@@ -107,18 +107,18 @@ impl From<u16> for Lit {
 
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct LitS(pub i8);
+pub struct LitS(pub i16);
 
-impl From<u8> for LitS {
+impl From<i16> for LitS {
     #[inline(always)]
-    fn from(val: u8) -> Self {
+    fn from(val: i16) -> Self {
         LitS(unsafe { std::mem::transmute(val) })
     }
 }
 
 impl From<u16> for LitS {
     fn from(val: u16) -> Self {
-        ((val & 0xff) as u8).into()
+        val.into()
     }
 }
 
