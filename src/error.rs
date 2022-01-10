@@ -8,4 +8,10 @@ pub enum DecompileError {
     InvalidULeb128,
     #[error("Invalid byte code header bytes")]
     InvalidHeaderBytes(&'static str),
+    #[error("Unknown instruction opcode.")]
+    UnknownInsOpcode,
+    #[error("Unexpected instruction opcode.")]
+    UnexpectedInsOpcode,
+    #[error("Invalid primitive type value.")]
+    InvalidPriValue,
 }
