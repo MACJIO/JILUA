@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 
 #[derive(Debug)]
-struct Node<N: Sized> {
+struct Node<N> {
     weight: N,
     next_outgoing_edge: Option<u32>,
     next_incoming_edge: Option<u32>,
 }
 
-impl<N: Sized + Clone> Clone for Node<N> {
+impl<N: Clone> Clone for Node<N> {
     fn clone(&self) -> Self {
         Node {
             weight: self.weight.clone(),
@@ -24,7 +24,7 @@ impl<N: Sized + Clone> Clone for Node<N> {
 }
 
 #[derive(Debug)]
-struct Edge<E: Sized> {
+struct Edge<E> {
     weight: E,
     from: u32,
     to: u32,
@@ -32,7 +32,7 @@ struct Edge<E: Sized> {
     next_incoming_edge: Option<u32>,
 }
 
-impl<E: Sized + Clone> Clone for Edge<E> {
+impl<E: Clone> Clone for Edge<E> {
     fn clone(&self) -> Self {
         Edge {
             weight: self.weight.clone(),
@@ -53,18 +53,42 @@ impl<E: Sized + Clone> Clone for Edge<E> {
 }
 
 #[derive(Debug)]
-pub struct Graph<N: Sized, E: Sized> {
+pub struct Graph<N, E> {
     nodes: BTreeMap<u32, Node<N>>,
     edges: Vec<Edge<E>>,
 }
 
-impl<N: Sized, E: Sized> Graph<N, E> {
+impl<N, E: Clone> Graph<N, E> {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
             nodes: BTreeMap::new(),
             edges: Vec::new(),
         }
+    }
+
+    pub fn structure_copy<T: Default>(&self) -> Graph<T, E> {
+        let mut nodes: BTreeMap<u32, Node<T>> = BTreeMap::new();
+
+        for (&idx, node) in &self.nodes {
+            nodes.insert(
+                idx,
+                Node {
+                    weight: T::default(),
+                    next_outgoing_edge: node.next_outgoing_edge,
+                    next_incoming_edge: node.next_incoming_edge,
+                },
+            );
+        }
+
+        Graph {
+            nodes,
+            edges: self.edges.clone(),
+        }
+    }
+
+    pub fn iter_node_weights(&self) -> impl Iterator<Item = (u32, &N)> {
+        self.nodes.iter().map(|(k, v)| (*k, &v.weight))
     }
 
     #[inline(always)]
