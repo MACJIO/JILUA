@@ -79,6 +79,8 @@ fn recurse_block(
         let next_block = graph.try_next_node(block_start_idx);
         let mut prev_cond_idx = None;
 
+        let block_size = bc_raw.len();
+
         for (idx, &ins_raw) in bc_raw.iter().enumerate().skip(block_start_idx as usize) {
             // add block it has no jumps in the end
             if Some(idx as u32) == next_block {
@@ -188,6 +190,13 @@ fn recurse_block(
                     return Ok(());
                 }
                 Op::RET(_, _) | Op::RET0(_, _) | Op::RET1(_, _) | Op::RETM(_, _) => {
+                    // analyze jump after RET1 case
+                    if idx + 2 <= block_size {
+                        if let Op::JMP(..) = disasm(bc_raw[idx + 1])? {
+                            continue;
+                        }
+                    }
+
                     graph.add_node(
                         block_start_idx,
                         Block::from_ins_vec(bc_raw[block_start_idx as usize..].to_vec()),
