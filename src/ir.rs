@@ -1,3 +1,4 @@
+use crate::types::Pri;
 use std::fmt;
 use std::fmt::{write, Formatter};
 
@@ -39,6 +40,92 @@ pub enum Expr {
 
     GlobalTable,
     Table([Box<Expr>; 2]), // (table, index)
+}
+
+impl Expr {
+    pub fn var(val: u16) -> Box<Expr> {
+        Box::new(Expr::Var(Var(val)))
+    }
+
+    pub fn num(val: u16) -> Box<Expr> {
+        Box::new(Expr::Num(val))
+    }
+
+    pub fn uv(val: u16) -> Box<Expr> {
+        Box::new(Expr::Uv(val))
+    }
+
+    pub fn str(val: u16) -> Box<Expr> {
+        Box::new(Expr::Str(val))
+    }
+
+    pub fn cdata(val: u16) -> Box<Expr> {
+        Box::new(Expr::Cdata(val))
+    }
+
+    pub fn short(val: i16) -> Box<Expr> {
+        Box::new(Expr::Short(val as i16))
+    }
+
+    pub fn primitive(val: Pri) -> Box<Expr> {
+        match val {
+            Pri::Nil => Box::new(Expr::Nil),
+            Pri::True => Box::new(Expr::Bool(true)),
+            Pri::False => Box::new(Expr::Bool(false)),
+        }
+    }
+
+    pub fn add(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Add([a, b]))
+    }
+
+    pub fn sub(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Sub([a, b]))
+    }
+
+    pub fn mod_(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Mod([a, b]))
+    }
+
+    pub fn mul(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Mul([a, b]))
+    }
+
+    pub fn div(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Div([a, b]))
+    }
+
+    pub fn pow(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Pow([a, b]))
+    }
+
+    pub fn table(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Table([a, b]))
+    }
+
+    pub fn lt(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Lt([a, b]))
+    }
+
+    pub fn gt(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Gt([a, b]))
+    }
+
+    pub fn le(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Le([a, b]))
+    }
+
+    pub fn ge(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Ge([a, b]))
+    }
+
+    pub fn eq(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Eq([a, b]))
+    }
+
+    pub fn ne(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Ne([a, b]))
+    }
 }
 
 impl fmt::Display for Expr {
@@ -111,12 +198,12 @@ impl fmt::Display for Insn {
             f,
             "{}",
             match self {
-                Insn::SetVar(v, exp) => format!("{} = {}", v, exp),
+                Insn::SetVar(v, expr) => format!("{} = {}", v, expr),
                 Insn::SetGlobalTableVar(..) => format!(""),
                 Insn::SetTableVar(..) => format!(""),
-                Insn::Call(v, exp) => format!(""),
+                Insn::Call(..) => format!(""),
                 Insn::Cat(..) => format!(""),
-                Insn::If(..) => format!(""),
+                Insn::If(expr) => format!("if {}", expr),
                 Insn::For(..) => format!(""),
                 Insn::While(..) => format!(""),
                 Insn::Repeat(..) => format!(""),
@@ -128,6 +215,16 @@ impl fmt::Display for Insn {
 #[derive(Default)]
 pub struct Block {
     data: Vec<Insn>,
+}
+
+impl Block {
+    pub fn push_insn(&mut self, ins: Insn) {
+        self.data.push(ins);
+    }
+
+    pub fn iter_insn(&self) -> impl Iterator<Item = &Insn> {
+        self.data.iter()
+    }
 }
 
 #[cfg(test)]
