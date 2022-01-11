@@ -190,6 +190,7 @@ pub enum Insn {
     For(Box<Expr>),
     While(Box<Expr>),
     Repeat(Box<Expr>),
+    Return(Box<[Expr]>)
 }
 
 impl fmt::Display for Insn {
@@ -207,6 +208,22 @@ impl fmt::Display for Insn {
                 Insn::For(..) => format!(""),
                 Insn::While(..) => format!(""),
                 Insn::Repeat(..) => format!(""),
+                Insn::Return(expr) => {
+                    let mut res = "return".to_string();
+
+                    if expr.len() >= 1 {
+                        res.push_str(&format!(" {}", expr[0]));
+
+                        if expr.len() > 1 {
+                            println!("TEST!")
+                        }
+                        for ret in expr[1..].iter() {
+                            res.push_str(&format!(", {}", ret));
+                        }
+                    }
+
+                    res
+                }
             }
         )
     }
