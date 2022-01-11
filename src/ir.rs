@@ -37,9 +37,7 @@ pub enum Expr {
     Mod([Box<Expr>; 2]),
     Pow([Box<Expr>; 2]),
 
-    // table expression
-    GlobalTable(u16),
-    // index in global const table
+    GlobalTable,
     Table([Box<Expr>; 2]), // (table, index)
 }
 
@@ -73,7 +71,7 @@ impl fmt::Display for Expr {
                 Expr::Div([a, b]) => format!("{} / {}", a, b),
                 Expr::Mod([a, b]) => format!("{} % {}", a, b),
                 Expr::Pow([a, b]) => format!("{}^{}", a, b),
-                Expr::GlobalTable(a) => format!("_G[{}]", a),
+                Expr::GlobalTable => format!("_G"),
                 Expr::Table([a, b]) => format!("{}[{}]", a, b),
             }
         )
@@ -127,6 +125,7 @@ impl fmt::Display for Insn {
     }
 }
 
+#[derive(Default)]
 pub struct Block {
     data: Vec<Insn>,
 }
