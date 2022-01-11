@@ -15,12 +15,12 @@ fn get_a<R: From<u8>>(ins: u32) -> R {
 
 #[inline(always)]
 fn get_b<R: From<u8>>(ins: u32) -> R {
-    (((ins >> 16) & 0xff) as u8).into()
+    ((ins >> 24) as u8).into()
 }
 
 #[inline(always)]
 fn get_c<R: From<u8>>(ins: u32) -> R {
-    ((ins >> 24) as u8).into()
+    (((ins >> 16) & 0xff) as u8).into()
 }
 
 #[inline(always)]
