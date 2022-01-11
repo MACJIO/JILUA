@@ -111,14 +111,12 @@ pub struct LitS(pub i16);
 
 impl From<i16> for LitS {
     #[inline(always)]
-    fn from(val: i16) -> Self {
-        LitS(unsafe { std::mem::transmute(val) })
-    }
+    fn from(val: i16) -> Self { LitS(val) }
 }
 
 impl From<u16> for LitS {
     fn from(val: u16) -> Self {
-        val.into()
+        LitS(val as i16)
     }
 }
 
