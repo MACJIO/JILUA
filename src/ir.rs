@@ -67,6 +67,10 @@ impl Expr {
         Box::new(Expr::Short(val as i16))
     }
 
+    pub fn lit(val: u8) -> Box<Expr> {
+        Box::new(Expr::Lit(val))
+    }
+
     pub fn primitive(val: Pri) -> Box<Expr> {
         match val {
             Pri::Nil => Box::new(Expr::Nil),
@@ -125,6 +129,18 @@ impl Expr {
 
     pub fn ne(a: Box<Expr>, b: Box<Expr>) -> Box<Expr> {
         Box::new(Expr::Ne([a, b]))
+    }
+
+    pub fn not(a: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Not(a))
+    }
+
+    pub fn minus(a: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Minus(a))
+    }
+
+    pub fn len(a: Box<Expr>) -> Box<Expr> {
+        Box::new(Expr::Len(a))
     }
 }
 
@@ -187,7 +203,7 @@ pub enum Insn {
     Call(Box<[Var]>, Box<[Expr]>),
     Cat(Var, Box<[Expr]>),
     If(Box<Expr>),
-    For(Box<Expr>),
+    For(Box<[Expr]>),
     While(Box<Expr>),
     Repeat(Box<Expr>),
     Return(Box<[Expr]>),
@@ -223,16 +239,16 @@ impl fmt::Display for Insn {
                         for arg in args[2..].iter() {
                             res.push_str(&format!(", {}", arg));
                         }
-
-                        res.push_str(")");
                     }
+
+                    res.push_str(")");
 
                     res
                 }
                 Insn::Cat(..) => format!(""),
                 Insn::If(expr) => format!("if {}", expr),
-                Insn::For(..) => format!(""),
-                Insn::While(..) => format!(""),
+                Insn::For(args) => format!("for {}, {}, {}", args[0], args[1], args[2]),
+                Insn::While(expr) => format!("while {}", expr),
                 Insn::Repeat(..) => format!(""),
                 Insn::Return(expr) => {
                     let mut res = "return".to_string();
@@ -240,9 +256,6 @@ impl fmt::Display for Insn {
                     if expr.len() >= 1 {
                         res.push_str(&format!(" {}", expr[0]));
 
-                        if expr.len() > 1 {
-                            println!("TEST!")
-                        }
                         for ret in expr[1..].iter() {
                             res.push_str(&format!(", {}", ret));
                         }
