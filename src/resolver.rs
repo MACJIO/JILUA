@@ -86,7 +86,7 @@ fn recurse_block(
             if Some(idx as u32) == next_block {
                 graph.add_node(
                     block_start_idx,
-                    Block::from_ins_vec(bc_raw[block_start_idx as usize..idx as usize].to_vec()),
+                    Block::from_ins_vec(bc_raw[block_start_idx as usize..=idx as usize].to_vec()),
                 );
                 graph.add_edge(BranchKind::Unconditional, block_start_idx, idx as u32);
 
@@ -113,7 +113,7 @@ fn recurse_block(
                     graph.add_node(
                         block_start_idx,
                         Block::from_ins_vec(
-                            bc_raw[block_start_idx as usize..idx as usize].to_vec(),
+                            bc_raw[block_start_idx as usize..=idx as usize].to_vec(),
                         ),
                     );
 
@@ -140,7 +140,7 @@ fn recurse_block(
                     graph.add_node(
                         block_start_idx,
                         Block::from_ins_vec(
-                            bc_raw[block_start_idx as usize..idx as usize].to_vec(),
+                            bc_raw[block_start_idx as usize..=idx as usize].to_vec(),
                         ),
                     );
 
@@ -156,7 +156,7 @@ fn recurse_block(
                     graph.add_node(
                         block_start_idx,
                         Block::from_ins_vec(
-                            bc_raw[block_start_idx as usize..idx as usize].to_vec(),
+                            bc_raw[block_start_idx as usize..=idx as usize].to_vec(),
                         ),
                     );
 
@@ -175,7 +175,7 @@ fn recurse_block(
                     graph.add_node(
                         block_start_idx,
                         Block::from_ins_vec(
-                            bc_raw[block_start_idx as usize..idx as usize].to_vec(),
+                            bc_raw[block_start_idx as usize..=idx as usize].to_vec(),
                         ),
                     );
 
