@@ -1,5 +1,6 @@
 use std::io::Read;
 
+use crate::disasm::disasm;
 use crate::error::DecompileError;
 use crate::Graph;
 use byteorder::{LittleEndian, ReadBytesExt};
@@ -256,8 +257,8 @@ pub fn read_prototype<T: Read>(
     bc_proto.size_num_consts = read_uleb128(data)?;
     bc_proto.size_bc = read_uleb128(data)?; // byte code instruction count (+ 1 for repr)
 
-    println!("flags 0x{:x} num_params 0x{:x} frame_size 0x{:x} size_uv 0x{:x} size_kgc 0x{:x} size_kn 0x{:x} size_bc 0x{:x}",
-             bc_proto.flags, bc_proto.num_params, bc_proto.frame_size, bc_proto.size_up_values, bc_proto.size_global_consts, bc_proto.size_num_consts, bc_proto.size_bc);
+    // println!("flags 0x{:x} num_params 0x{:x} frame_size 0x{:x} size_uv 0x{:x} size_kgc 0x{:x} size_kn 0x{:x} size_bc 0x{:x}",
+    //          bc_proto.flags, bc_proto.num_params, bc_proto.frame_size, bc_proto.size_up_values, bc_proto.size_global_consts, bc_proto.size_num_consts, bc_proto.size_bc);
 
     // todo: check debug flags and collect debug data if it exists
 
@@ -302,6 +303,10 @@ pub fn read_prototype_bytecode<T: Read>(
 
         bc_proto.bc_raw = ins_buff;
     }
+
+    // for &ins in &bc_proto.bc_raw {
+    //     println!("{:?}", disasm(ins)?);
+    // }
 
     // analyze control flow graph
     bc_proto.basic_block_graph = resolve_basic_blocks(&bc_proto.bc_raw[..])?;
@@ -447,7 +452,7 @@ pub fn read_bytecode_dump<T: Read>(data: &mut T) -> Result<ByteCodeDump, Decompi
 
             read_prototype(&mut proto_data, &mut proto)?;
 
-            println!("Prototype object: {:?}", proto);
+            // println!("Prototype object: {:?}", proto);
             bc_dump.prototypes.push(proto);
         } else {
             break;
