@@ -67,6 +67,10 @@ impl Expr {
         Box::new(Expr::Short(val as i16))
     }
 
+    pub fn nil() -> Box<Expr> {
+        Box::new(Expr::Nil)
+    }
+
     pub fn lit(val: u8) -> Box<Expr> {
         Box::new(Expr::Lit(val))
     }
@@ -197,7 +201,7 @@ pub struct VarInfo {
 
 #[derive(Debug)]
 pub enum Insn {
-    SetVar(Var, Box<Expr>),
+    SetVars(Box<[Var]>, Box<Expr>),
     SetGlobalTableVar(Var, Box<Expr>),
     SetTableVar(Var, Box<Expr>),
     Call(Box<[Var]>, Box<[Expr]>),
@@ -209,13 +213,33 @@ pub enum Insn {
     Return(Box<[Expr]>),
 }
 
+impl Insn {
+    pub fn set_var(var: Var, exp: Box<Expr>) -> Insn {
+        Insn::SetVars(vec![var].into_boxed_slice(), exp)
+    }
+}
+
 impl fmt::Display for Insn {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{}",
             match self {
-                Insn::SetVar(v, expr) => format!("{} = {}", v, expr),
+                Insn::SetVars(vars, expr) => {
+                    let mut res = "".to_string();
+
+                    res.push_str(&format!("{}", vars[0]));
+
+                    if vars.len() > 1 {
+                        for var in vars[1..].iter() {
+                            res.push_str(&format!(", {}", var))
+                        }
+                    }
+
+                    res.push_str(&format!(" = {}", expr));
+
+                    res
+                },
                 Insn::SetGlobalTableVar(..) => format!(""),
                 Insn::SetTableVar(..) => format!(""),
                 Insn::Call(rets, args) => {

@@ -1,3 +1,4 @@
+use std::env::var;
 use crate::disasm::disasm;
 use crate::ir::{Block, Expr, Insn, Var};
 use crate::op::Op;
@@ -63,127 +64,139 @@ pub fn lift(bc_proto: &ByteCodeProto) -> Result<Graph<Block, BranchKind>, Decomp
                 Op::ISTYPE(_, _) => {}
                 Op::ISNUM(_, _) => {}
                 // unary
-                Op::MOV(a, b) => analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::var(b.0))),
+                Op::MOV(a, b) => analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::var(b.0))),
                 Op::NOT(a, b) => {
-                    analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::not(Expr::var(b.0))))
+                    analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::not(Expr::var(b.0))))
                 }
                 Op::UNM(a, b) => {
-                    analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::minus(Expr::var(b.0))))
+                    analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::minus(Expr::var(b.0))))
                 }
                 Op::LEN(a, b) => {
-                    analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::len(Expr::var(b.0))))
+                    analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::len(Expr::var(b.0))))
                 }
                 // binary
                 Op::ADDVN(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::add(Expr::var(b.0), Expr::num(c.0)),
                     ));
                 }
                 Op::SUBVN(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::sub(Expr::var(b.0), Expr::num(c.0)),
                     ));
                 }
                 Op::MULVN(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::mul(Expr::var(b.0), Expr::num(c.0)),
                     ));
                 }
                 Op::DIVVN(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::div(Expr::var(b.0), Expr::num(c.0)),
                     ));
                 }
                 Op::MODVN(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::mod_(Expr::var(b.0), Expr::num(c.0)),
                     ));
                 }
                 Op::ADDNV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::add(Expr::num(c.0), Expr::var(b.0)),
                     ));
                 }
                 Op::SUBNV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::sub(Expr::num(c.0), Expr::var(b.0)),
                     ));
                 }
                 Op::MULNV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::mul(Expr::num(c.0), Expr::var(b.0)),
                     ));
                 }
                 Op::DIVNV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::div(Expr::num(c.0), Expr::var(b.0)),
                     ));
                 }
                 Op::MODNV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::mod_(Expr::num(c.0), Expr::var(b.0)),
                     ));
                 }
                 Op::ADDVV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::add(Expr::var(b.0), Expr::var(c.0)),
                     ));
                 }
                 Op::SUBVV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::sub(Expr::var(b.0), Expr::var(c.0)),
                     ));
                 }
                 Op::MULVV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::mul(Expr::var(b.0), Expr::var(c.0)),
                     ));
                 }
                 Op::DIVVV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::div(Expr::var(b.0), Expr::var(c.0)),
                     ));
                 }
                 Op::MODVV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::mod_(Expr::var(b.0), Expr::var(c.0)),
                     ));
                 }
                 Op::POW(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::pow(Expr::var(b.0), Expr::var(c.0)),
                     ));
                 }
                 Op::CAT(_, _, _) => {}
                 // constants
-                Op::KSTR(a, b) => analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::str(b.0))),
+                Op::KSTR(a, b) => analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::str(b.0))),
                 Op::KCDATA(a, b) => {
-                    analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::cdata(b.0)))
+                    analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::cdata(b.0)))
                 }
                 Op::KSHORT(a, b) => {
-                    analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::short(b.0)))
+                    analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::short(b.0)))
                 }
-                Op::KNUM(a, b) => analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::num(b.0))),
+                Op::KNUM(a, b) => analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::num(b.0))),
                 Op::KPRI(a, b) => {
-                    analyzed_block.push_insn(Insn::SetVar(Var(a.0), Expr::primitive(b)))
+                    analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::primitive(b)))
                 }
-                Op::KNIL(a, b) => {}
+                Op::KNIL(a, b) => {
+                    if b.0 > a.0 {
+                        let mut vars: Vec<Var> = Vec::with_capacity((b.0 - a.0) as usize + 1);
+
+                        for i in a.0..=b.0 {
+                            vars.push(Var(i));
+                        }
+
+                        analyzed_block.push_insn(Insn::SetVars(vars.into_boxed_slice(), Expr::nil()));
+                    } else {
+                        panic!("KNIL slot a <= b.");
+                    }
+                }
                 // up values
                 Op::UGET(_, _) => {}
                 Op::USETV(_, _) => {}
@@ -194,28 +207,33 @@ pub fn lift(bc_proto: &ByteCodeProto) -> Result<Graph<Block, BranchKind>, Decomp
                 Op::FNEW(_, _) => {}
                 // tables
                 Op::TNEW(_, _) => {}
-                Op::TDUP(_, _) => {}
+                Op::TDUP(a, b) => {
+                    analyzed_block.push_insn(Insn::set_var(
+                        Var(a.0),
+                        Expr::var(b.0)
+                    ))
+                }
                 Op::GGET(a, b) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::table(Box::new(Expr::GlobalTable), Expr::str(b.0)),
                     ));
                 }
                 Op::GSET(_, _) => {}
                 Op::TGETV(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::table(Expr::var(b.0), Expr::var(c.0)),
                     ));
                 }
                 Op::TGETS(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::table(Expr::var(b.0), Expr::str(c.0)),
                     ));
                 }
                 Op::TGETB(a, b, c) => {
-                    analyzed_block.push_insn(Insn::SetVar(
+                    analyzed_block.push_insn(Insn::set_var(
                         Var(a.0),
                         Expr::table(Expr::var(b.0), Expr::lit(c.0)),
                     ));
