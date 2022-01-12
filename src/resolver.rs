@@ -222,7 +222,6 @@ pub fn resolve_basic_blocks(bc_raw: &[u32]) -> Result<Graph<Block, BranchKind>, 
 
     recurse_block(&mut graph, bc_raw, 0)?;
 
-    println!("{:?}", graph);
     Ok(graph)
 }
 

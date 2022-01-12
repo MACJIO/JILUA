@@ -190,7 +190,7 @@ pub enum Insn {
     For(Box<Expr>),
     While(Box<Expr>),
     Repeat(Box<Expr>),
-    Return(Box<[Expr]>)
+    Return(Box<[Expr]>),
 }
 
 impl fmt::Display for Insn {
@@ -202,7 +202,33 @@ impl fmt::Display for Insn {
                 Insn::SetVar(v, expr) => format!("{} = {}", v, expr),
                 Insn::SetGlobalTableVar(..) => format!(""),
                 Insn::SetTableVar(..) => format!(""),
-                Insn::Call(..) => format!(""),
+                Insn::Call(rets, args) => {
+                    let mut res = "".to_string();
+
+                    if rets.len() > 0 {
+                        res.push_str(&format!("{}", rets[0]));
+
+                        for ret in rets[1..].iter() {
+                            res.push_str(&format!(", {}", ret));
+                        }
+
+                        res.push_str(" = ");
+                    }
+
+                    res.push_str(&format!("{}(", args[0]));
+
+                    if args.len() > 1 {
+                        res.push_str(&format!("{}", args[1]));
+
+                        for arg in args[2..].iter() {
+                            res.push_str(&format!(", {}", arg));
+                        }
+
+                        res.push_str(")");
+                    }
+
+                    res
+                }
                 Insn::Cat(..) => format!(""),
                 Insn::If(expr) => format!("if {}", expr),
                 Insn::For(..) => format!(""),
