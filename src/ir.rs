@@ -1,6 +1,7 @@
 use crate::types::Pri;
 use std::fmt;
 use std::fmt::{write, Formatter};
+use crate::ir::Expr::Str;
 
 #[derive(Debug)]
 pub enum Expr {
@@ -197,7 +198,25 @@ impl fmt::Display for Var {
 #[derive(Debug)]
 pub struct VarInfo {
     name: String,
+    table: bool,
+    usage_cnt: u16,
 }
+
+impl VarInfo {
+    pub fn new_default(index: u16) -> Self {
+        Self {
+            name: format!("slot_{}", index),
+            table: false,
+            usage_cnt: 0
+        }
+    }
+    
+    pub fn increment_usage_counter(&mut self) -> u16 {
+        self.usage_cnt += 1;
+        self.usage_cnt
+    }
+}
+
 
 #[derive(Debug)]
 pub enum Insn {
