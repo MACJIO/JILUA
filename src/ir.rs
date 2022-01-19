@@ -288,7 +288,17 @@ impl fmt::Display for Insn {
 
                     res
                 }
-                Insn::Cat(..) => format!(""),
+                Insn::Cat(var, exprs) => {
+                    let mut res = format!("{} = {}", var, exprs[0]);
+
+                    if exprs.len() > 1 {
+                        for expr in exprs.iter() {
+                            res.push_str(&format!(" ~ {}", expr));
+                        }
+                    }
+
+                    res
+                },
                 Insn::If(expr) => format!("if {}", expr),
                 Insn::For(args) => format!("for {}, {}, {}", args[0], args[1], args[2]),
                 Insn::While(expr) => format!("while {}", expr),

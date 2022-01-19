@@ -217,7 +217,20 @@ impl Lifter {
                             Expr::pow(Expr::var(b.0), Expr::var(c.0)),
                         ));
                     }
-                    Op::CAT(_, _, _) => {}
+                    Op::CAT(a, b, c) => {
+                        if c.0 > b.0 {
+                            let var = self.var_for_slot(a.0, false);
+
+                            let mut exprs: Vec<Expr> = vec![];
+                            for idx in b.0..=c.0 {
+                                exprs.push(Expr::Var(Var(idx)));
+                            }
+
+                            analyzed_block.push_insn(Insn::Cat(var, exprs.into_boxed_slice()));
+                        } else {
+                            panic!("CAT slot b >= c");
+                        }
+                    }
                     // constants
                     Op::KSTR(a, b) => {
                         let var = self.var_for_slot(a.0, false);
@@ -243,8 +256,8 @@ impl Lifter {
                         if b.0 > a.0 {
                             let mut vars: Vec<Var> = Vec::with_capacity((b.0 - a.0) as usize + 1);
 
-                            for i in a.0..=b.0 {
-                                let var = self.var_for_slot(i, false);
+                            for idx in a.0..=b.0 {
+                                let var = self.var_for_slot(idx, false);
                                 vars.push(var);
                             }
 
