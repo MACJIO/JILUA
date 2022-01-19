@@ -203,18 +203,10 @@ pub struct VarInfo {
 }
 
 impl VarInfo {
-    pub fn new_default(index: u16) -> Self {
+    pub fn new(index: u16, table: bool) -> Self {
         Self {
             name: format!("slot_{}", index),
-            table: false,
-            usage_cnt: 0
-        }
-    }
-
-    pub fn new_default_table(index: u16) -> Self {
-        Self {
-            name: format!("slot_{}", index),
-            table: true,
+            table,
             usage_cnt: 0
         }
     }

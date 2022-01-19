@@ -11,27 +11,25 @@ pub struct Lifter {
 }
 
 impl Lifter {
-    fn var_for_slot(&mut self, index: u16, var_info: VarInfo) -> Var {
+    pub(crate) fn new() -> Self {
+        Self {
+            slots: HashMap::new()
+        }
+    }
+
+    fn var_for_slot(&mut self, index: u16, table: bool) -> Var {
         // let len = self.slots.len();
         if let Some(var_info) = self.slots.get_mut(&index) {
             var_info.increment_usage_counter();
 
             Var(index)
         } else {
-            self.slots.insert(index,var_info);
+            self.slots.insert(index, VarInfo::new(index, table));
             Var(index)
         }
     }
 
-    fn default_var_for_slot(&mut self, index: u16) -> Var {
-        self.var_for_slot(index, VarInfo::new_default(index))
-    }
-
-    fn table_default_var_for_slot(&mut self, index: u16) -> Var {
-        self.var_for_slot(index, VarInfo::new_default_table(index))
-    }
-
-    pub fn analyze_bc_proto(bc_proto: &ByteCodeProto) -> Result<Graph<Block, BranchKind>, DecompileError> {
+    pub fn analyze_bc_proto(&mut self, bc_proto: &ByteCodeProto) -> Result<Graph<Block, BranchKind>, DecompileError> {
         let mut graph: Graph<Block, BranchKind> = bc_proto.basic_block_graph_ref().structure_copy();
 
         for (block_idx, basic_block) in bc_proto.basic_block_graph_ref().iter_node_weights() {
@@ -90,132 +88,164 @@ impl Lifter {
                     Op::ISTYPE(_, _) => {}
                     Op::ISNUM(_, _) => {}
                     // unary
-                    Op::MOV(a, b) => analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::var(b.0))),
+                    Op::MOV(a, b) => {
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::var(b.0)));
+                    }
                     Op::NOT(a, b) => {
-                        analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::not(Expr::var(b.0))))
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::not(Expr::var(b.0))))
                     }
                     Op::UNM(a, b) => {
-                        analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::minus(Expr::var(b.0))))
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::minus(Expr::var(b.0))))
                     }
                     Op::LEN(a, b) => {
-                        analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::len(Expr::var(b.0))))
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::len(Expr::var(b.0))))
                     }
                     // binary
                     Op::ADDVN(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::add(Expr::var(b.0), Expr::num(c.0)),
                         ));
                     }
                     Op::SUBVN(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::sub(Expr::var(b.0), Expr::num(c.0)),
                         ));
                     }
                     Op::MULVN(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::mul(Expr::var(b.0), Expr::num(c.0)),
                         ));
                     }
                     Op::DIVVN(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::div(Expr::var(b.0), Expr::num(c.0)),
                         ));
                     }
                     Op::MODVN(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::mod_(Expr::var(b.0), Expr::num(c.0)),
                         ));
                     }
                     Op::ADDNV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::add(Expr::num(c.0), Expr::var(b.0)),
                         ));
                     }
                     Op::SUBNV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::sub(Expr::num(c.0), Expr::var(b.0)),
                         ));
                     }
                     Op::MULNV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::mul(Expr::num(c.0), Expr::var(b.0)),
                         ));
                     }
                     Op::DIVNV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::div(Expr::num(c.0), Expr::var(b.0)),
                         ));
                     }
                     Op::MODNV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::mod_(Expr::num(c.0), Expr::var(b.0)),
                         ));
                     }
                     Op::ADDVV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::add(Expr::var(b.0), Expr::var(c.0)),
                         ));
                     }
                     Op::SUBVV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::sub(Expr::var(b.0), Expr::var(c.0)),
                         ));
                     }
                     Op::MULVV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::mul(Expr::var(b.0), Expr::var(c.0)),
                         ));
                     }
                     Op::DIVVV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::div(Expr::var(b.0), Expr::var(c.0)),
                         ));
                     }
                     Op::MODVV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::mod_(Expr::var(b.0), Expr::var(c.0)),
                         ));
                     }
                     Op::POW(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::pow(Expr::var(b.0), Expr::var(c.0)),
                         ));
                     }
                     Op::CAT(_, _, _) => {}
                     // constants
-                    Op::KSTR(a, b) => analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::str(b.0))),
+                    Op::KSTR(a, b) => {
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::str(b.0)))
+                    }
                     Op::KCDATA(a, b) => {
-                        analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::cdata(b.0)))
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::cdata(b.0)))
                     }
                     Op::KSHORT(a, b) => {
-                        analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::short(b.0)))
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::short(b.0)))
                     }
-                    Op::KNUM(a, b) => analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::num(b.0))),
+                    Op::KNUM(a, b) => {
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::num(b.0)))
+                    }
                     Op::KPRI(a, b) => {
-                        analyzed_block.push_insn(Insn::set_var(Var(a.0), Expr::primitive(b)))
+                        let var = self.var_for_slot(a.0, false);
+                        analyzed_block.push_insn(Insn::set_var(var, Expr::primitive(b)))
                     }
                     Op::KNIL(a, b) => {
                         if b.0 > a.0 {
                             let mut vars: Vec<Var> = Vec::with_capacity((b.0 - a.0) as usize + 1);
 
                             for i in a.0..=b.0 {
-                                vars.push(Var(i));
+                                let var = self.var_for_slot(i, false);
+                                vars.push(var);
                             }
 
                             analyzed_block.push_insn(Insn::SetVars(vars.into_boxed_slice(), Expr::nil()));
@@ -234,33 +264,38 @@ impl Lifter {
                     // tables
                     Op::TNEW(_, _) => {}
                     Op::TDUP(a, b) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
-                            Expr::var(b.0)
+                            var,
+                            Expr::var(b.0),
                         ))
                     }
                     Op::GGET(a, b) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::table(Box::new(Expr::GlobalTable), Expr::str(b.0)),
                         ));
                     }
                     Op::GSET(_, _) => {}
                     Op::TGETV(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::table(Expr::var(b.0), Expr::var(c.0)),
                         ));
                     }
                     Op::TGETS(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::table(Expr::var(b.0), Expr::str(c.0)),
                         ));
                     }
                     Op::TGETB(a, b, c) => {
+                        let var = self.var_for_slot(a.0, false);
                         analyzed_block.push_insn(Insn::set_var(
-                            Var(a.0),
+                            var,
                             Expr::table(Expr::var(b.0), Expr::lit(c.0)),
                         ));
                     }
@@ -277,7 +312,8 @@ impl Lifter {
                             let mut res: Vec<Var> = vec![];
 
                             for idx in a.0..(a.0 + b.0 as u16 - 1) {
-                                res.push(Var(idx))
+                                let var = self.var_for_slot(idx, false);
+                                res.push(var)
                             }
 
                             res.into_boxed_slice()
@@ -362,7 +398,6 @@ impl Lifter {
 
         Ok(graph)
     }
-
 }
 
 fn print_lifted_graph(graph: &Graph<Block, BranchKind>) {
