@@ -210,6 +210,14 @@ impl VarInfo {
             usage_cnt: 0
         }
     }
+
+    pub fn new_default_table(index: u16) -> Self {
+        Self {
+            name: format!("slot_{}", index),
+            table: true,
+            usage_cnt: 0
+        }
+    }
     
     pub fn increment_usage_counter(&mut self) -> u16 {
         self.usage_cnt += 1;
