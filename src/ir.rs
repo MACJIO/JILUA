@@ -1,7 +1,7 @@
+use crate::ir::Expr::Str;
 use crate::types::Pri;
 use std::fmt;
 use std::fmt::{write, Formatter};
-use crate::ir::Expr::Str;
 
 #[derive(Debug)]
 pub enum Expr {
@@ -10,7 +10,7 @@ pub enum Expr {
 
     // constants
     Cdata(u16),
-    Str(u16),
+    Str(String),
     Num(u16),
     Lit(u8),
     Short(i16),
@@ -39,6 +39,8 @@ pub enum Expr {
     Mod([Box<Expr>; 2]),
     Pow([Box<Expr>; 2]),
 
+    Closure(u16),
+
     GlobalTable,
     Table([Box<Expr>; 2]), // (table, index)
 }
@@ -46,6 +48,10 @@ pub enum Expr {
 impl Expr {
     pub fn var(val: u16) -> Box<Expr> {
         Box::new(Expr::Var(Var(val)))
+    }
+
+    pub fn closure(val: u16) -> Box<Expr> {
+        Box::new(Expr::Closure(val))
     }
 
     pub fn num(val: u16) -> Box<Expr> {
@@ -56,7 +62,7 @@ impl Expr {
         Box::new(Expr::Uv(val))
     }
 
-    pub fn str(val: u16) -> Box<Expr> {
+    pub fn str(val: String) -> Box<Expr> {
         Box::new(Expr::Str(val))
     }
 
@@ -156,7 +162,7 @@ impl fmt::Display for Expr {
             "{}",
             match self {
                 Expr::Var(a) => format!("v{}", a.0),
-                Expr::Str(a) => format!("String({})", a),
+                Expr::Str(a) => format!("\"{}\"", a.escape_debug()),
                 Expr::Num(a) => format!("Num({})", a),
                 Expr::Lit(a) => format!("Lit({})", a),
                 Expr::Short(a) => format!("Short({})", a),
@@ -181,6 +187,7 @@ impl fmt::Display for Expr {
                 Expr::Pow([a, b]) => format!("{}^{}", a, b),
                 Expr::GlobalTable => format!("_G"),
                 Expr::Table([a, b]) => format!("{}[{}]", a, b),
+                Expr::Closure(a) => format!("closure(proto({}))", a),
             }
         )
     }
@@ -199,31 +206,33 @@ impl fmt::Display for Var {
 pub struct VarInfo {
     name: String,
     table: bool,
+    up_value: bool,
     usage_cnt: u16,
 }
 
 impl VarInfo {
-    pub fn new(index: u16, table: bool) -> Self {
+    pub fn new(index: u16, table: bool, up_value: bool) -> Self {
         Self {
             name: format!("slot_{}", index),
             table,
-            usage_cnt: 0
+            up_value,
+            usage_cnt: 0,
         }
     }
-    
+
     pub fn increment_usage_counter(&mut self) -> u16 {
         self.usage_cnt += 1;
         self.usage_cnt
     }
 }
 
-
 #[derive(Debug)]
 pub enum Insn {
     SetVars(Box<[Var]>, Box<Expr>),
-    SetGlobalTableVar(Var, Box<Expr>),
-    SetTableVar(Var, Box<Expr>),
+    SetGlobalTableVar([Box<Expr>; 2]),
+    SetTableVar(Var, [Box<Expr>; 2]),
     Call(Box<[Var]>, Box<[Expr]>),
+    TailCall(Box<[Expr]>),
     Cat(Var, Box<[Expr]>),
     If(Box<Expr>),
     For(Box<[Expr]>),
@@ -235,6 +244,14 @@ pub enum Insn {
 impl Insn {
     pub fn set_var(var: Var, exp: Box<Expr>) -> Insn {
         Insn::SetVars(vec![var].into_boxed_slice(), exp)
+    }
+
+    pub fn set_global_table_var(idx: Box<Expr>, exp: Box<Expr>) -> Insn {
+        Insn::SetGlobalTableVar([idx, exp])
+    }
+
+    pub fn set_table_var(var: Var, idx: Box<Expr>, exp: Box<Expr>) -> Insn {
+        Insn::SetTableVar(var, [idx, exp])
     }
 }
 
@@ -258,9 +275,9 @@ impl fmt::Display for Insn {
                     res.push_str(&format!(" = {}", expr));
 
                     res
-                },
-                Insn::SetGlobalTableVar(..) => format!(""),
-                Insn::SetTableVar(..) => format!(""),
+                }
+                Insn::SetGlobalTableVar(args) => format!("_G[{}] = {}", args[0], args[1]),
+                Insn::SetTableVar(table, args) => format!("{}[{}] = {}", table, args[0], args[1]),
                 Insn::Call(rets, args) => {
                     let mut res = "".to_string();
 
@@ -292,13 +309,13 @@ impl fmt::Display for Insn {
                     let mut res = format!("{} = {}", var, exprs[0]);
 
                     if exprs.len() > 1 {
-                        for expr in exprs.iter() {
+                        for expr in exprs[1..].iter() {
                             res.push_str(&format!(" ~ {}", expr));
                         }
                     }
 
                     res
-                },
+                }
                 Insn::If(expr) => format!("if {}", expr),
                 Insn::For(args) => format!("for {}, {}, {}", args[0], args[1], args[2]),
                 Insn::While(expr) => format!("while {}", expr),
@@ -313,6 +330,21 @@ impl fmt::Display for Insn {
                             res.push_str(&format!(", {}", ret));
                         }
                     }
+
+                    res
+                }
+                Insn::TailCall(args) => {
+                    let mut res = format!("return {}(", args[0]);
+
+                    if args.len() > 1 {
+                        res.push_str(&format!("{}", args[1]));
+
+                        for arg in args[2..].iter() {
+                            res.push_str(&format!(", {}", arg))
+                        }
+                    }
+
+                    res.push_str(")");
 
                     res
                 }
