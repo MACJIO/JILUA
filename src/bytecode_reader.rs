@@ -78,6 +78,21 @@ impl ByteCodeProto {
     pub fn basic_block_graph_ref(&self) -> &Graph<Block, BranchKind> {
         &self.basic_block_graph
     }
+
+    pub fn str_from_global_table(&self, idx: u16) -> Option<&String> {
+        let size = self.size_global_consts;
+
+        let idx = (size - idx as u32 - 1) as usize;
+
+        if let Some(global_const) = self.global_consts.get(idx) {
+            return match global_const {
+                GlobalConst::Str(str) => Some(str),
+                _ => None,
+            };
+        }
+
+        None
+    }
 }
 
 #[derive(Debug)]
