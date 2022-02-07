@@ -128,7 +128,13 @@ fn recurse_block(
                         recurse_block(graph, bc_raw, next_block_idx)?;
                         graph.add_edge(BranchKind::False, block_start_idx, next_block_idx);
                     } else {
-                        graph.add_edge(BranchKind::Unconditional, block_start_idx, dest_block_idx);
+                        let branch = match disasm(bc_raw[dest_block_idx as usize])? {
+                            Op::ITERN(..) | Op::ITERC(..)
+                            | Op::ITERL(..) | Op::IITERL(..) | Op::JITERL(..) => BranchKind::Loop,
+                            _ => BranchKind::Unconditional
+                        };
+
+                        graph.add_edge(branch, block_start_idx, dest_block_idx);
                     }
 
                     return Ok(());
