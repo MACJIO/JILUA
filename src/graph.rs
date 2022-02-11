@@ -1,3 +1,7 @@
+use std::borrow::Borrow;
+use crate::op::Op;
+use crate::resolver::BranchKind;
+use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
 
 #[derive(Debug)]
@@ -32,6 +36,13 @@ struct Edge<E> {
     next_incoming_edge: Option<u32>,
 }
 
+impl<E> Edge<E> {
+    #[inline(always)]
+    pub fn weight(&self) -> &E {
+        &self.weight
+    }
+}
+
 impl<E: Clone> Clone for Edge<E> {
     fn clone(&self) -> Self {
         Edge {
@@ -49,6 +60,42 @@ impl<E: Clone> Clone for Edge<E> {
         self.to = source.to;
         self.next_incoming_edge = source.next_incoming_edge;
         self.next_outgoing_edge = source.next_outgoing_edge;
+    }
+}
+
+pub struct Outputs<'graph, E> {
+    edges: &'graph [Edge<E>],
+    next: Option<u32>,
+}
+
+impl<'graph, E> Iterator for Outputs<'graph, E> {
+    type Item = u32;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.next;
+        if let Some(idx) = next {
+            self.next = self.edges[idx as usize].next_outgoing_edge
+        }
+        next
+    }
+}
+
+pub struct Inputs<'graph, E> {
+    edges: &'graph [Edge<E>],
+    next: Option<u32>,
+}
+
+impl<'graph, E> Iterator for Inputs<'graph, E> {
+    type Item = u32;
+
+    #[inline]
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.next;
+        if let Some(idx) = next {
+            self.next = self.edges[idx as usize].next_incoming_edge
+        }
+        next
     }
 }
 
@@ -87,13 +134,18 @@ impl<N, E: Clone> Graph<N, E> {
         }
     }
 
-    pub fn iter_node_weights(&self) -> impl Iterator<Item = (u32, &N)> {
+    pub fn iter_node_weights(&self) -> impl Iterator<Item=(u32, &N)> {
         self.nodes.iter().map(|(k, v)| (*k, &v.weight))
     }
 
     #[inline(always)]
     fn edge_mut(&mut self, index: u32) -> Option<&mut Edge<E>> {
         self.edges.get_mut(index as usize)
+    }
+
+    #[inline(always)]
+    pub fn edge_weight(&self, index: u32) -> Option<&E> {
+        self.edges.get(index as usize).map(|e| e.weight())
     }
 
     #[inline(always)]
@@ -170,6 +222,17 @@ impl<N, E: Clone> Graph<N, E> {
             .map_or(Some(index), |_| None)
     }
 
+    pub fn next_outgoing_node_idx(&self, node_idx: u32) -> Option<u32> {
+        let node = self.node(node_idx).unwrap();
+        if let Some(edge_idx) = node.next_outgoing_edge {
+            let edge = self.edges.get(edge_idx as usize).unwrap();
+
+            return Some(edge.to)
+        }
+
+        None
+    }
+
     pub fn split_node<F: FnOnce(&mut N) -> N>(
         &mut self,
         index: u32,
@@ -202,17 +265,20 @@ impl<N, E: Clone> Graph<N, E> {
 
         new_index
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use crate::Graph;
+    #[inline(always)]
+    pub fn outputs(&self, node_idx: u32) -> Outputs<E> {
+        Outputs {
+            edges: &self.edges,
+            next: self.node(node_idx).unwrap().next_outgoing_edge,
+        }
+    }
 
-    #[test]
-    fn add_node_block() {
-        let mut graph: Graph<u32, u32> = Graph::new();
-
-        assert_eq!(graph.add_node(0, 1).unwrap(), 0);
-        // assert_eq!(graph.add_node(0, 2), 0);
+    #[inline(always)]
+    pub fn inputs(&self, node_idx: u32) -> Inputs<E> {
+        Inputs {
+            edges: &self.edges,
+            next: self.node(node_idx).unwrap().next_incoming_edge,
+        }
     }
 }
