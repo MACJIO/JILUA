@@ -140,10 +140,7 @@ fn recurse_block(
                     return Ok(());
                 }
                 Op::UCLO(_, jump) => {
-                    if jump.0 == 0 {
-                        continue;
-                    }
-
+                    // add node end with current instruction
                     graph.add_node(
                         block_start_idx,
                         Block::from_ins_vec(
@@ -151,7 +148,8 @@ fn recurse_block(
                         ),
                     );
 
-                    let dest_block_idx = ((idx + 1) as i32 + jump.0 as i32) as u32;
+                    // UCLO always jumps into next instuction
+                    let dest_block_idx = (idx + 1) as u32;
                     recurse_block(graph, bc_raw, dest_block_idx)?;
                     graph.add_edge(BranchKind::Unconditional, block_start_idx, dest_block_idx);
 
