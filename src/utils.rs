@@ -1,11 +1,10 @@
-use std::arch::aarch64::vcopy_lane_s16;
-use std::borrow::BorrowMut;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read};
+use std::io::{self, BufRead};
 use std::collections::HashMap;
 use regex::Regex;
 
-fn parse_luajit_bytecode_file(file: File) -> Vec<HashMap<u16, Vec<String>>> {
+pub fn parse_luajit_bytecode_file(file: File) -> Vec<HashMap<u16, Vec<String>>> {
+    // TODO: Somehow try to collect edges
     // instruction index expression
     let ins_idx_re = Regex::new(r"([0-9]{4}).{4}[A-Z]{2,}").unwrap();
     // jump to expression
@@ -27,36 +26,33 @@ fn parse_luajit_bytecode_file(file: File) -> Vec<HashMap<u16, Vec<String>>> {
             proto.insert(0, Vec::new());
 
             prototypes.push(proto);
-        } else {
-            if let Some(cap) = ins_idx_re.captures(&line) {
-                // get current instruction index from line, decrement cause starts from 1
-                let curr_ins_idx = &cap[1].parse::<u16>().unwrap() - 1;
+        } else if let Some(cap) = ins_idx_re.captures(&line) {
+            // get current instruction index from line, decrement cause starts from 1
+            let curr_ins_idx = &cap[1].parse::<u16>().unwrap() - 1;
 
-                if let Some(last_proto) = prototypes.last_mut() {
-                    if jump_from_to_re.is_match(&line) {
-                        // create block and add current instruction
-                        last_proto.insert(curr_ins_idx, vec![line]);
-                        // create empty block for next instructions
-                        last_proto.insert(curr_ins_idx + 1, Vec::new());
-                    } else if jump_to_re.is_match(&line) {
-                        // add current instruction to last block
-                        last_proto.iter_mut().max().unwrap().1.push(line);
-                        // last_proto.iter_mut().last().unwrap().1.push(line);
-                        // create empty block for next instructions
-                        last_proto.insert(curr_ins_idx + 1, Vec::new());
-                    } else if jump_from_re.is_match(&line) {
-                        // create block and add current instruction
-                        last_proto.insert(curr_ins_idx, vec![line]);
-                    } else {
-                        // just add to last block
-                        last_proto.iter_mut().max().unwrap().1.push(line);
-                        // last_proto.iter_mut().last().unwrap().1.push(line);
-                    }
+            if let Some(last_proto) = prototypes.last_mut() {
+                if jump_from_to_re.is_match(&line) {
+                    // create block and add current instruction
+                    last_proto.insert(curr_ins_idx, vec![line]);
+                    // create empty block for next instructions
+                    last_proto.insert(curr_ins_idx + 1, Vec::new());
+                } else if jump_to_re.is_match(&line) {
+                    // add current instruction to last block
+                    last_proto.iter_mut().max().unwrap().1.push(line);
+                    // last_proto.iter_mut().last().unwrap().1.push(line);
+                    // create empty block for next instructions
+                    last_proto.insert(curr_ins_idx + 1, Vec::new());
+                } else if jump_from_re.is_match(&line) {
+                    // create block and add current instruction
+                    last_proto.insert(curr_ins_idx, vec![line]);
                 } else {
-                    panic!("Prototypes vector cannot be empty");
+                    // just add to last block
+                    last_proto.iter_mut().max().unwrap().1.push(line);
+                    // last_proto.iter_mut().last().unwrap().1.push(line);
                 }
+            } else {
+                panic!("Prototypes vector cannot be empty");
             }
-            // empty space between prototypes in file
         }
     }
 
@@ -92,7 +88,7 @@ mod tests {
         // check block ids and lengths
         for (real_block_id, &real_block_len) in real_blocks.iter() {
             let block_option = first_proto.get(real_block_id);
-            assert_eq!(block_option.is_some(), true);
+            assert!(block_option.is_some());
             assert_eq!(block_option.unwrap().len(), real_block_len as usize);
         }
 
@@ -107,7 +103,7 @@ mod tests {
 
         for (real_block_id, &real_block_len) in real_blocks.iter() {
             let block_option = second_proto.get(real_block_id);
-            assert_eq!(block_option.is_some(), true);
+            assert!(block_option.is_some());
             assert_eq!(block_option.unwrap().len(), real_block_len as usize);
         }
     }
