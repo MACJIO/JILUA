@@ -282,3 +282,61 @@ impl<N, E: Clone> Graph<N, E> {
         }
     }
 }
+
+#[derive(Clone, Debug)]
+/// Visit nodes in a depth-first-search (DFS) emitting nodes in postorder
+pub struct DfsPostOrder {
+    /// Vec of nodes to visit
+    pub stack: Vec<u32>,
+    /// Set of visited node indices
+    pub discovered: HashSet<u32>,
+    /// Set of finished node indices
+    pub finished: HashSet<u32>,
+}
+
+impl DfsPostOrder {
+    pub fn new<N, E: Clone>(graph: &Graph<N, E>, start: u32) -> Self <> {
+        let mut dfs = DfsPostOrder {
+            stack: vec![],
+            discovered: HashSet::with_capacity(graph.node_count()),
+            finished: HashSet::with_capacity(graph.node_count()),
+        };
+
+        dfs.move_to(start);
+        dfs
+    }
+
+    /// Keep the discovered and finished map, but clear the visit stack and restart
+    /// the dfs from a particular node.
+    pub fn move_to(&mut self, start: u32) {
+        self.stack.clear();
+        self.stack.push(start);
+    }
+
+    pub fn next<N, E: Clone>(&mut self, graph: &Graph<N, E>) -> Option<u32> {
+        while let Some(&nx) = self.stack.last() {
+            // check if already discovered
+            if self.discovered.insert(nx) {
+                // add neighbors to stack in not discovered
+                for edge in graph.outputs(nx) {
+                    let node_id = graph.edge_to(edge);
+
+                    if !self.discovered.insert(node_id) {
+                        self.stack.push(node_id)
+                    }
+                }
+            } else {
+                // pop from "to visit" stack if already discovered
+                self.stack.pop();
+
+                // try to visit node
+                if self.finished.insert(nx) {
+                    return Some(nx);
+                }
+            }
+        }
+        None
+    }
+}
+
+
