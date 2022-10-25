@@ -1,11 +1,8 @@
-use std::borrow::Borrow;
-use crate::op::Op;
-use crate::resolver::BranchKind;
-use std::collections::btree_map::Iter;
 use std::collections::BTreeMap;
+use crate::graph::visit::DfsPostOrder;
 
 #[derive(Debug)]
-struct Node<N> {
+pub struct Node<N> {
     weight: N,
     next_outgoing_edge: Option<u32>,
     next_incoming_edge: Option<u32>,
@@ -27,8 +24,14 @@ impl<N: Clone> Clone for Node<N> {
     }
 }
 
+impl<N: Clone> Node<N> {
+    pub fn weight(&self) -> N {
+        self.weight.clone()
+    }
+}
+
 #[derive(Debug)]
-struct Edge<E> {
+pub struct Edge<E> {
     weight: E,
     from: u32,
     to: u32,
@@ -41,6 +44,12 @@ impl<E> Edge<E> {
     pub fn weight(&self) -> &E {
         &self.weight
     }
+
+    #[inline(always)]
+    pub fn to(&self) -> u32 { self.to }
+
+    #[inline(always)]
+    pub fn from(&self) -> u32 { self.from }
 }
 
 impl<E: Clone> Clone for Edge<E> {
@@ -63,11 +72,13 @@ impl<E: Clone> Clone for Edge<E> {
     }
 }
 
+/// Node outgoing edges iterator. `Outputs` implements `Iterator`.
 pub struct Outputs<'graph, E> {
     edges: &'graph [Edge<E>],
     next: Option<u32>,
 }
 
+/// Iterates through outgoing edge list
 impl<'graph, E> Iterator for Outputs<'graph, E> {
     type Item = u32;
 
@@ -81,11 +92,13 @@ impl<'graph, E> Iterator for Outputs<'graph, E> {
     }
 }
 
+/// Node incoming edges iterator. `Inputs` implements `Iterator`.
 pub struct Inputs<'graph, E> {
     edges: &'graph [Edge<E>],
     next: Option<u32>,
 }
 
+/// Iterates through incoming edge list
 impl<'graph, E> Iterator for Inputs<'graph, E> {
     type Item = u32;
 
@@ -105,13 +118,26 @@ pub struct Graph<N, E> {
     edges: Vec<Edge<E>>,
 }
 
-impl<N, E: Clone> Graph<N, E> {
+impl<N: Clone, E: Clone> Graph<N, E> {
     #[inline(always)]
     pub fn new() -> Self {
         Self {
             nodes: BTreeMap::new(),
             edges: Vec::new(),
         }
+    }
+
+    pub fn nodes(&self) -> &BTreeMap<u32, Node<N>> {
+        &self.nodes
+    }
+
+    pub fn edges(&self) -> Vec<Edge<E>> {
+        self.edges.clone()
+    }
+
+    #[inline(always)]
+    pub fn node_count(&self) -> usize {
+        self.nodes.len()
     }
 
     pub fn structure_copy<T: Default>(&self) -> Graph<T, E> {
@@ -144,6 +170,12 @@ impl<N, E: Clone> Graph<N, E> {
     }
 
     #[inline(always)]
+    /// Returns index of outgoing node
+    pub fn edge_to(&self, index: u32) -> u32 {
+        self.edges.get(index as usize).unwrap().to
+    }
+
+    #[inline(always)]
     pub fn edge_weight(&self, index: u32) -> Option<&E> {
         self.edges.get(index as usize).map(|e| e.weight())
     }
@@ -158,7 +190,7 @@ impl<N, E: Clone> Graph<N, E> {
         self.nodes
             .range(..=index)
             .next_back()
-            .map_or(None, |(&index, _)| Some(index))
+            .map(|(&index, _)| index)
     }
 
     #[inline(always)]
@@ -166,11 +198,12 @@ impl<N, E: Clone> Graph<N, E> {
         self.nodes
             .range(index..)
             .next()
-            .map_or(None, |(&index, _)| Some(index))
+            .map(|(&index, _)| index)
     }
 
     #[inline(always)]
-    fn node(&self, index: u32) -> Option<&Node<N>> {
+    /// Get node from graph by index in BTreeMap
+    pub fn node(&self, index: u32) -> Option<&Node<N>> {
         self.nodes.get(&index)
     }
 
@@ -222,17 +255,6 @@ impl<N, E: Clone> Graph<N, E> {
             .map_or(Some(index), |_| None)
     }
 
-    pub fn next_outgoing_node_idx(&self, node_idx: u32) -> Option<u32> {
-        let node = self.node(node_idx).unwrap();
-        if let Some(edge_idx) = node.next_outgoing_edge {
-            let edge = self.edges.get(edge_idx as usize).unwrap();
-
-            return Some(edge.to)
-        }
-
-        None
-    }
-
     pub fn split_node<F: FnOnce(&mut N) -> N>(
         &mut self,
         index: u32,
@@ -267,6 +289,7 @@ impl<N, E: Clone> Graph<N, E> {
     }
 
     #[inline(always)]
+    /// Returns Iterator `Outputs` of outgoing node edges by node index
     pub fn outputs(&self, node_idx: u32) -> Outputs<E> {
         Outputs {
             edges: &self.edges,
@@ -275,68 +298,19 @@ impl<N, E: Clone> Graph<N, E> {
     }
 
     #[inline(always)]
+    /// Returns Iterator `Inputs` of incoming node edges by node index
     pub fn inputs(&self, node_idx: u32) -> Inputs<E> {
         Inputs {
             edges: &self.edges,
             next: self.node(node_idx).unwrap().next_incoming_edge,
         }
     }
-}
 
-#[derive(Clone, Debug)]
-/// Visit nodes in a depth-first-search (DFS) emitting nodes in postorder
-pub struct DfsPostOrder {
-    /// Vec of nodes to visit
-    pub stack: Vec<u32>,
-    /// Set of visited node indices
-    pub discovered: HashSet<u32>,
-    /// Set of finished node indices
-    pub finished: HashSet<u32>,
-}
-
-impl DfsPostOrder {
-    pub fn new<N, E: Clone>(graph: &Graph<N, E>, start: u32) -> Self <> {
-        let mut dfs = DfsPostOrder {
-            stack: vec![],
-            discovered: HashSet::with_capacity(graph.node_count()),
-            finished: HashSet::with_capacity(graph.node_count()),
-        };
-
-        dfs.move_to(start);
-        dfs
-    }
-
-    /// Keep the discovered and finished map, but clear the visit stack and restart
-    /// the dfs from a particular node.
-    pub fn move_to(&mut self, start: u32) {
-        self.stack.clear();
-        self.stack.push(start);
-    }
-
-    pub fn next<N, E: Clone>(&mut self, graph: &Graph<N, E>) -> Option<u32> {
-        while let Some(&nx) = self.stack.last() {
-            // check if already discovered
-            if self.discovered.insert(nx) {
-                // add neighbors to stack in not discovered
-                for edge in graph.outputs(nx) {
-                    let node_id = graph.edge_to(edge);
-
-                    if !self.discovered.insert(node_id) {
-                        self.stack.push(node_id)
-                    }
-                }
-            } else {
-                // pop from "to visit" stack if already discovered
-                self.stack.pop();
-
-                // try to visit node
-                if self.finished.insert(nx) {
-                    return Some(nx);
-                }
-            }
-        }
-        None
+    pub fn dfs_post_order_visitor(&self, start: u32) -> DfsPostOrder {
+        DfsPostOrder::new(self, start)
     }
 }
+
+
 
 
