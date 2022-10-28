@@ -127,12 +127,19 @@ impl<N: Clone, E: Clone> Graph<N, E> {
         }
     }
 
+    #[inline(always)]
     pub fn nodes(&self) -> &BTreeMap<u32, Node<N>> {
         &self.nodes
     }
 
+    #[inline(always)]
     pub fn edges(&self) -> Vec<Edge<E>> {
         self.edges.clone()
+    }
+
+    #[inline(always)]
+    pub fn edge(&self, idx: u32) -> Option<&Edge<E>> {
+        self.edges.get(idx as usize)
     }
 
     #[inline(always)]
