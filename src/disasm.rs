@@ -1,5 +1,4 @@
 use crate::DecompileError;
-use thiserror::Error;
 
 use crate::op::Op;
 
