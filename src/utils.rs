@@ -32,16 +32,27 @@ pub fn parse_luajit_bytecode_file(file: File) -> Vec<HashMap<u16, Vec<String>>> 
 
             if let Some(last_proto) = prototypes.last_mut() {
                 if jump_from_to_re.is_match(&line) {
-                    // create block and add current instruction
-                    last_proto.insert(curr_ins_idx, vec![line]);
-                    // create empty block for next instructions
-                    last_proto.insert(curr_ins_idx + 1, Vec::new());
+                    if line.contains("LOOP") {
+                        // create block and add current instruction
+                        last_proto.insert(curr_ins_idx, vec![line]);
+                    } else {
+                        // create block and add current instruction
+                        last_proto.insert(curr_ins_idx, vec![line]);
+                        // create empty block for next instructions
+                        last_proto.insert(curr_ins_idx + 1, Vec::new());
+                    }
                 } else if jump_to_re.is_match(&line) {
-                    // add current instruction to last block
-                    last_proto.iter_mut().max().unwrap().1.push(line);
-                    // last_proto.iter_mut().last().unwrap().1.push(line);
-                    // create empty block for next instructions
-                    last_proto.insert(curr_ins_idx + 1, Vec::new());
+                    if line.contains("LOOP") {
+                        // just add to last block
+                        last_proto.iter_mut().max().unwrap().1.push(line);
+                        // last_proto.iter_mut().last().unwrap().1.push(line);
+                    } else {
+                        // add current instruction to last block
+                        last_proto.iter_mut().max().unwrap().1.push(line);
+                        // last_proto.iter_mut().last().unwrap().1.push(line);
+                        // create empty block for next instructions
+                        last_proto.insert(curr_ins_idx + 1, Vec::new());
+                    }
                 } else if jump_from_re.is_match(&line) {
                     // create block and add current instruction
                     last_proto.insert(curr_ins_idx, vec![line]);
